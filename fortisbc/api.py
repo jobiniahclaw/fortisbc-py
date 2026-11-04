@@ -110,6 +110,14 @@ class FortisbcClient:
                 f"Login failed — still on CIAM after POST: {resp.url}"
             )
 
+        # FortisBC serves a maintenance page instead of logging in during
+        # scheduled outages (e.g. /service-alerts/login-temporarily-unavailable).
+        # Treating that as success led to opaque downstream ViewState errors.
+        if "temporarily-unavailable" in resp.url or "service-alerts" in resp.url:
+            raise FortisbcError(
+                f"FortisBC Account Online temporarily unavailable (maintenance) — landed on: {resp.url}"
+            )
+
     def fetch_all(self) -> dict:
         """Fetch data for all accounts. Returns dict with 'gas' and 'electric' keys."""
         result = {"gas": None, "electric": []}
@@ -616,7 +624,10 @@ class FortisbcClient:
     def _extract_view_state(self, soup: BeautifulSoup) -> str:
         field = soup.find("input", {"name": "javax.faces.ViewState"})
         if not field or not field.get("value"):
-            raise FortisbcError("ViewState missing from page — session may have expired or navigation failed")
+            title = soup.title.string.strip() if soup.title and soup.title.string else "?"
+            raise FortisbcError(
+                f"ViewState missing from page ({title!r}) — session may have expired or navigation failed"
+            )
         return str(field["value"])
 
     def _find_account_link(self, soup: BeautifulSoup, account_type: str) -> Optional[str]:
