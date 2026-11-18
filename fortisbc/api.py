@@ -450,7 +450,9 @@ class FortisbcClient:
         if not trigger_id:
             _LOGGER.warning("No AJAX trigger found for gas suffix %s", suffix)
             return None
-        ajax_html = self._fetch_gas_ajax(suffix, view_state, trigger_id)
+        trigger_el = soup.find("script", id=trigger_id)
+        trigger_script = trigger_el.string or "" if trigger_el else ""
+        ajax_html = self._fetch_gas_ajax(suffix, view_state, trigger_id, trigger_script)
         if ajax_html:
             ajax_soup = BeautifulSoup(ajax_html, "html.parser")
             periods = self._parse_monthly_table(ajax_soup, unit="GJ")
@@ -696,11 +698,17 @@ class FortisbcClient:
                 return el.get("id", "")
         return None
 
-    def _fetch_gas_ajax(self, suffix: str, view_state: str, trigger_id: str) -> Optional[str]:
+    def _fetch_gas_ajax(
+        self, suffix: str, view_state: str, trigger_id: str, trigger_script: str = ""
+    ) -> Optional[str]:
         """POST the Ajax4JSF request for gas consumption data.
 
         Gas uses selectDateRange3{S}/dateFrom2{S}/dateTo2{S} field names,
         distinct from the electric selectDateRangeEle{S} fields.
+
+        trigger_script is the raw JS of the loader (loadConsumpGraph{S}); since
+        2026-11 the server requires its default params (c/d/e/f{S}: SA id, date
+        range, account id), which we extract from `'name':value||'default'`.
         """
         data = {
             "AJAXREQUEST": "_viewRoot",
@@ -716,6 +724,11 @@ class FortisbcClient:
             f"param3{suffix}": "ABC",
             trigger_id: trigger_id,
         }
+        # loader default params, e.g. 'cXYZ':cXYZ||'0051538307'
+        for m in re.finditer(
+            rf"'(\w*{suffix})':\w+{suffix}\|\|'([^']*)'", trigger_script
+        ):
+            data[m.group(1)] = m.group(2)
         resp = self._session.post(
             CONSUMPTION_AJAX_URL,
             data=data,
