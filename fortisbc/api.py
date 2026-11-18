@@ -859,12 +859,31 @@ class FortisbcClient:
         Dates are approximate: first and last day of the named month.
         """
         periods = []
+        # 2026-11 gas format: 'Bill from date | Bill to date | # of days | Billed GJ | temp'
+        # with DD/MM/YYYY dates — exact dates, unlike the old 'Mon YYYY' rows.
+        dmy = re.compile(r"^\d{2}/\d{2}/\d{4}$")
         tables = soup.find_all("table", class_="table-bordered")
         for table in tables:
             rows = table.find("tbody").find_all("tr") if table.find("tbody") else []
             for row in rows:
                 cells = [td.get_text(strip=True) for td in row.find_all("td")]
                 if len(cells) < 2:
+                    continue
+                if dmy.match(cells[0]):
+                    try:
+                        start = datetime.strptime(cells[0], "%d/%m/%Y").date()
+                        end = datetime.strptime(cells[1], "%d/%m/%Y").date()
+                        days = int(cells[2]) if len(cells) > 2 and cells[2].isdigit() else (end - start).days + 1
+                        usage = float(cells[3].replace(",", ""))
+                        periods.append(BillingPeriod(
+                            start_date=start,
+                            end_date=end,
+                            days=days,
+                            usage=usage,
+                            usage_unit=unit,
+                        ))
+                    except (ValueError, IndexError):
+                        continue
                     continue
                 try:
                     for fmt in ("%B %Y", "%b %Y"):
