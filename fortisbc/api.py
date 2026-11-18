@@ -724,7 +724,7 @@ class FortisbcClient:
             f"param3{suffix}": "ABC",
             trigger_id: trigger_id,
         }
-        # loader default params, e.g. 'cXYZ':cXYZ||'0051538307'
+        # loader default params, e.g. 'cXYZ':cXYZ||'<saId>'
         for m in re.finditer(
             rf"'(\w*{suffix})':\w+{suffix}\|\|'([^']*)'", trigger_script
         ):
