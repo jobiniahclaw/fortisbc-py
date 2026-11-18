@@ -225,16 +225,34 @@ class FortisbcClient:
             html = resp.text
         return html
 
+    def _follow(self, method: str, url: str, max_hops: int = 6, **kwargs) -> "object":
+        """Request that follows redirects manually, upgrading http:// to https://.
+
+        FortisBC's account_details redirect now points at http:// (downgrade);
+        curl/requests stop at the scheme downgrade, so follow hop by hop.
+        """
+        resp = self._session.request(method, url, allow_redirects=False, **kwargs)
+        for _ in range(max_hops):
+            if resp.status_code not in (301, 302, 303, 307, 308):
+                return resp
+            loc = resp.headers.get("location")
+            if not loc:
+                return resp
+            if loc.startswith("http://"):
+                loc = "https://" + loc[len("http://"):]
+            resp = self._session.request("GET", loc, allow_redirects=False)
+        return resp
+
     def _select_account(self, link_id: str, view_state: str) -> str:
         """POST to account_summary to select an account. Returns account_details HTML."""
-        resp = self._session.post(
+        resp = self._follow(
+            "POST",
             ACCOUNT_SUMMARY_URL,
             data={
                 "account_summary": "account_summary",
                 "javax.faces.ViewState": view_state,
                 link_id: link_id,
             },
-            allow_redirects=True,
         )
         return resp.text
 
@@ -250,15 +268,15 @@ class FortisbcClient:
             data["graph1:customerOnNETTrueFalse11"] = "false"
             data["graph1:customerOnNETTrueFalse21"] = "false"
 
-        resp = self._session.post(
+        resp = self._follow(
+            "POST",
             ACCOUNT_DETAILS_URL,
             data=data,
-            allow_redirects=True,
         )
         return resp.text
 
     def _get_consumption_page(self) -> str:
-        resp = self._session.get(CONSUMPTION_URL, allow_redirects=True)
+        resp = self._follow("GET", CONSUMPTION_URL)
         return resp.text
 
     # ------------------------------------------------------------------
