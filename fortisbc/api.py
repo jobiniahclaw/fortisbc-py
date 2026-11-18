@@ -365,7 +365,9 @@ class FortisbcClient:
         results = []
         for script in soup.find_all("script", id=re.compile(r"^graph1:j_id")):
             content = script.string or ""
-            if "loadConsumpGraphsElctric" not in content:
+            # 2026-11: FortisBC renamed loadConsumpGraphsElctric → loadConsumpGraph (generic);
+            # 'loadConsumpGraph' matches both the old and new names.
+            if "loadConsumpGraph" not in content:
                 continue
             sa_id = _re_param(content, "d")
             cust_id = _re_param(content, "e")
