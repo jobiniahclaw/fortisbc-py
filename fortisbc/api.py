@@ -28,6 +28,7 @@ from datetime import date, datetime
 from typing import Optional
 
 from curl_cffi.requests import Session as CurlSession
+from curl_cffi.requests import Response as CurlResponse
 from bs4 import BeautifulSoup
 
 from .exceptions import FortisbcAuthError, FortisbcError
@@ -225,7 +226,7 @@ class FortisbcClient:
             html = resp.text
         return html
 
-    def _follow(self, method: str, url: str, max_hops: int = 6, **kwargs) -> "object":
+    def _follow(self, method: str, url: str, max_hops: int = 6, **kwargs) -> "CurlResponse":
         """Request that follows redirects manually, upgrading http:// to https://.
 
         FortisBC's account_details redirect now points at http:// (downgrade);
