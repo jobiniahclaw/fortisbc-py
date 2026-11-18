@@ -726,27 +726,27 @@ class FortisbcClient:
 
     def _navigate_to_billing_history(self, view_state: str) -> str:
         """POST the account_details navigation form to reach billing history."""
-        resp = self._session.post(
+        resp = self._follow(
+            "POST",
             ACCOUNT_DETAILS_URL,
             data={
                 "navigation": "navigation",
                 "javax.faces.ViewState": view_state,
                 "navigation:paymentHistory": "navigation:paymentHistory",
             },
-            allow_redirects=True,
         )
         return resp.text
 
     def _navigate_from_billing_to_consumption(self, view_state: str) -> None:
         """POST the billing history navigation form to reach consumption history."""
-        self._session.post(
+        self._follow(
+            "POST",
             BILLING_HISTORY_URL,
             data={
                 "navigation": "navigation",
                 "javax.faces.ViewState": view_state,
                 "navigation:consumptionHistory": "navigation:consumptionHistory",
             },
-            allow_redirects=True,
         )
 
     def _parse_billing_history(self, soup: BeautifulSoup) -> list[tuple[date, date, float]]:
